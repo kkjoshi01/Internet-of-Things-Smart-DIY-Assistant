@@ -1,0 +1,2 @@
+C:/com3505-student-2025/LA2/esp-box/examples/factory_demo/build/CMakeFiles/edit_cache.dir
+C:/com3505-student-2025/LA2/esp-box/examples/factory_demo/build/CMakeFiles/rebuild_cache.dir

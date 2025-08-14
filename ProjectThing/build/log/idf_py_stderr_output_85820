@@ -1,0 +1,55 @@
+info: INFO: Symbol BSP_ERROR_CHECK defined in multiple locations (see below). Please check if this is a correct behavior or a random name match:
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-3\Kconfig:3
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box\Kconfig:3
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-lite\Kconfig:3
+info: INFO: Symbol BSP_I2C_NUM defined in multiple locations (see below). Please check if this is a correct behavior or a random name match:
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box\Kconfig:10
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-lite\Kconfig:10
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-3\Kconfig:10
+info: INFO: Symbol BSP_I2C_FAST_MODE defined in multiple locations (see below). Please check if this is a correct behavior or a random name match:
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-3\Kconfig:17
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box\Kconfig:17
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-lite\Kconfig:17
+info: INFO: Symbol BSP_I2C_CLK_SPEED_HZ defined in multiple locations (see below). Please check if this is a correct behavior or a random name match:
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box\Kconfig:23
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-3\Kconfig:23
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-lite\Kconfig:23
+info: INFO: Symbol BSP_SPIFFS_FORMAT_ON_MOUNT_FAIL defined in multiple locations (see below). Please check if this is a correct behavior or a random name match:
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-lite\Kconfig:30
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-3\Kconfig:30
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box\Kconfig:30
+info: INFO: Symbol BSP_SPIFFS_MOUNT_POINT defined in multiple locations (see below). Please check if this is a correct behavior or a random name match:
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-lite\Kconfig:36
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box\Kconfig:36
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-3\Kconfig:36
+info: INFO: Symbol BSP_SPIFFS_PARTITION_LABEL defined in multiple locations (see below). Please check if this is a correct behavior or a random name match:
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-3\Kconfig:42
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-lite\Kconfig:42
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box\Kconfig:42
+info: INFO: Symbol BSP_SPIFFS_MAX_FILES defined in multiple locations (see below). Please check if this is a correct behavior or a random name match:
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box\Kconfig:48
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-3\Kconfig:48
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-lite\Kconfig:48
+info: INFO: Symbol BSP_DISPLAY_BRIGHTNESS_LEDC_CH defined in multiple locations (see below). Please check if this is a correct behavior or a random name match:
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-lite\Kconfig:56
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-3\Kconfig:71
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box\Kconfig:56
+info: INFO: Symbol BSP_LCD_DRAW_BUF_HEIGHT defined in multiple locations (see below). Please check if this is a correct behavior or a random name match:
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box\Kconfig:64
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-lite\Kconfig:64
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-3\Kconfig:79
+info: INFO: Symbol BSP_LCD_DRAW_BUF_DOUBLE defined in multiple locations (see below). Please check if this is a correct behavior or a random name match:
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-3\Kconfig:86
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-lite\Kconfig:71
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box\Kconfig:71
+info: INFO: Symbol BSP_I2S_NUM defined in multiple locations (see below). Please check if this is a correct behavior or a random name match:
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box\Kconfig:78
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-3\Kconfig:93
+    C:\com3505-student-2025\LA2\ProjectThing\managed_components\espressif__esp-box-lite\Kconfig:78
+CMake Warning at C:/Espressif/frameworks/esp-idf-v5.4.1/tools/cmake/component.cmake:273 (message):
+  SRCS and SRC_DIRS are both specified; ignoring SRC_DIRS.
+Call Stack (most recent call first):
+  C:/Espressif/frameworks/esp-idf-v5.4.1/tools/cmake/component.cmake:454 (__component_add_sources)
+  main/CMakeLists.txt:3 (idf_component_register)
+
+

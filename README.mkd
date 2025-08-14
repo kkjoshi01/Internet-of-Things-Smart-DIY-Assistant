@@ -1,0 +1,287 @@
+# COM3505 Lab Assessment 2
+*By Keshav Joshi and Rohit Menon*
+
+<figure>
+    <img src="./media/cover image.jpg" alt="Description" width="500" height ="500"/>
+    <figcaption><strong>Figure 1:</strong> Image showing the SmartESP</figcaption>
+</figure>
+
+
+Our project, ***SmartESP***, is a 'DIY Alexa' that combines *esp_sr* with *Wit.ai* and *OpenAI Whisper* to provide speech-based responses to user-voiced queries. Our primary focus was on robustness and user-centred design around ease of use for handling. This project was built off of the [*Espressif ESP-Box Factory Demo*](https://github.com/espressif/esp-box/tree/master/examples/factory_demo) code, as it was considered a necessary foundation for the application of the ESP S3 Box 3B's internal hardware.
+
+> As structured in the Espressif ESP-Box examples, the system entrypoint is /ProjectThing/main/main.c not /ProjectThing/ProjectThing.ino
+
+## Hardware
+Our focus was on maximising the usage of internal hardware for efficiency. The following components are used from the ESP box:
+* 2.4-inch (320 x 240) SPI touchscreen,
+* Internal Dual Digital Microphone
+* Internal Audio Speaker
+
+
+## Firmware
+Our project was developed using ESP-IDF as it was what all primarily-applied prebuilt frameworks for the ESP-Box used (including *Willow*). Following ESP-IDF C Project File Structures, our structure became:
+```
+ProjectThing/
+├── build
+├── external_components/
+│   └── include
+├── main/
+│   ├── app
+│   ├── gui
+│   ├── idf_component.yml
+│   ├── main.c
+│   └── main.h
+├── managed_components
+└── spiffs
+```
+Our code was organised under */ProjectThing/main* into two divisions:
+* ***/app*** - Code handling the core functionality of our project and work in parallel with our displayed User Interface (UI).
+* ***/gui*** - Display and handling of all the UI used within our project.
+
+----
+
+### Speech Recognition
+[**sr_main.h**](./ProjectThing/main/app/sr_main.h), [**sr_main.c**](./ProjectThing/main/app/sr_main.c)
+
+WakeNet, a feature of the ESP-based speech recognition module *esp_sr*, is initialised. Upon WakeNet detecting the words "```Hi ESP```", the system will record audio from the microphone for 5 seconds and then send off the data for processing into an audio file. Afterwards, it will handle communication to other */app* components to ensure that the audio file is processed and the correct UI is displayed.
+
+In detail, WakeNet from *esp_sr* is run as a threaded task **sr_task()** alongside **sr_feed_audio()** which processes the audio coming from the internal microphones into the appropriate formatting for both audio recording and recognition. Buffer objects are only recorded after WakeNet detected the wakeword. The entire module is initialised using **sr_init()** which configures and enables WakeNet.
+
+---
+
+### Audio Management
+
+[**audio_manager.h**](./ProjectThing/main/app/audio_manager.h), [**audio_manager.c**](./ProjectThing/main/app/audio_manager.c)
+
+These components handle the volume, saving and playback of audio files using Waveform Audio File ([WAVE](http://soundfile.sapp.org/doc/WaveFormat/)) and raw formatting. 
+
+- **save_audio()** - Creates a WAVE file header variable in which the data, read in mono from stereo using **BSP**, is filled into. The file is then saved in binary format to */spiffs*.
+- **play_audio()** - Reads the audio file using the WAVE header format and writes it to the **I2S** using **BSP**.
+- **save_raw_audio()** - The exact same process as **save_audio()** just without the WAVE header.
+- **audio_set_volume()** and **audio_toggle()** - The functions developed to mute and toggle the audio.
+
+--- 
+
+### Wi-Fi Provisioning
+
+[**app_net.h**](./ProjectThing/main/app/app_net.h), [**app_net.c**](./ProjectThing/main/app/app_net.c)
+
+Handler for Wi-Fi internet connection, web server generation and device to ESP AP connection. The majority of this code reuses elements of our LA1 Wi-Fi provisioning, just in C format.
+
+- **wifi_event_handler()** - Initialises the ESP as an Access Point (AP) then attempts connection to the user-chosen SSID. Also calls functions within */gui* and */app* to inform that Wi-Fi has been connected.
+- **start_web_server()** - Initialises a web server at ```192.168.4.1``` for a user to enter the SSID and password of a local network.
+- **wifiFormHandler()** - Using a polished version of our LA1, we provide a HTML-based submission form for the user to view on the web server.
+- **connectHandler()** - Collects the inputs from the web server form and processes them for **wifi_event_handler()** to use to attempt connection. Also provides a processing response for users.
+- **wifi_init()** - Initialises the Wi-Fi service and configurations and then calls the **wifi_event_handler()**.
+
+---
+
+### HTTP Connections 
+
+[**client_connections.h**](./ProjectThing/main/app/client_connections.h), [**client_connections.c**](./ProjectThing/main/app/client_connections.c)
+
+This code handles all the external API connections performed in this project. This includes the processing of audio files with Wit.Ai and OpenAI Whisper as well as retrieving information such as local weather, time and date.
+
+- **send_audio_to_wit()** - Loads the saved WAVE audio file and sends it via *HTTP POST* to Wit.ai. The status of the send is collected, and if no issues occurred, the program calls the next stage of processing the results.
+- **wit_handler()** - Handles HTTP events including data collection from an API, and parses JSON data retrieved to locate the final text suggestion from Wit.ai API.
+
+- **text_to_gpt()** - Generates an OpenAI response based on the retrieved text from Wit.ai. Parses the response for a text query, and if a query is returned, calls *ui_conversation_show_screen()* with the query and prompt to display.
+
+- **gpt_to_speech()** - Uses OpenAI speech to produce a WAVE-formatted audio of the GPT prompt made in *text_to_gpt()*, plays audio if successfully retrieved.
+
+- **get_local_city_and_weather()** - Generates a HTTP GET request from *wttr.in* to get the city and weather of the IP address of the network the system is connected to. The event response is handled by **weather_handler** which stores the data recorded.
+
+- **sync_time_with_ntp()** - Gets the local time for the system using an NTP server, which then updates the displayed time in *ui_main*.
+
+---
+
+### User Interface
+
+[ui_aboutus.h](./ProjectThing/main/gui/ui_aboutus.h), [ui_aboutus.c](./ProjectThing/main/gui/ui_aboutus.c), [ui_assistant.h](./ProjectThing/main/gui/ui_assistant.h), [ui_assistant.c](./ProjectThing/main/gui/ui_assistant.c), [ui_conversation.h](./ProjectThing/main/gui/ui_conversation.h), [ui_conversation.c](./ProjectThing/main/gui/ui_conversation.c), [ui_main.h](./ProjectThing/main/gui/ui_main.h), [ui_main.c](./ProjectThing/main/gui/ui_main.c), [ui_updating.h](./ProjectThing/main/gui/ui_updating.h), [ui_wifi.h](./ProjectThing/main/gui/ui_wifi.h), [ui_wifi.c](./ProjectThing/main/gui/ui_wifi.c)
+
+The user interface is displayed on the screen using LVGL. Upon startup, *ui_main.c* is called; this initialises the main UI screen and also handles the connections (through tappable buttons) to other UI screens.
+
+- **ui_aboutus** - The about page which shows the current system version, MAC address, Wi-Fi and cloud status.
+- **ui_assistant** - The display screen when the Wakeword has been detected.
+- **ui_conversation** - Displays the query and response of the audio processing.
+- **ui_main** - The UI main landing page that also handles connections to all the other UI screens.
+<!-- - **ui_updating** - The screen displayed when OTA updating is on-going. -->
+- **ui_wifi** - UI page to show the user how to connect to Wi-Fi, includes the use of two QR codes which, when scanned will log the user automatically into the SmartESP network and take them to the Web Server page.
+
+<figure>
+    <img src="./media/main_page.jpg" alt="UI Main" width="500" height ="500"/>
+    <figcaption><strong>Figure 2:</strong> Landing page of the ESP Box</figcaption>
+</figure>
+
+<figure>
+    <img src="./media/WiFi page.jpg" alt="UI WiFi" width="500" height ="500"/>
+    <figcaption><strong>Figure 3:</strong> WiFi setup page</figcaption>
+</figure>
+
+<figure>
+    <img src="./media/aboutus page.jpg" alt="UI Aboutus" width="500" height ="500"/>
+    <figcaption><strong>Figure 4:</strong> About us page</figcaption>
+</figure>
+
+<figure>
+    <img src="./media/listening page.jpg" alt="UI Assistant" width="500" height ="500"/>
+    <figcaption><strong>Figure 5:</strong> AI assistant page</figcaption>
+</figure>
+
+<figure>
+    <img src="./media/response page.jpg" alt="UI Response" width="500" height ="500"/>
+    <figcaption><strong>Figure 6:</strong> Conversation page which shows the query and response</figcaption>
+</figure>
+
+--- 
+
+### Miscellaneous 
+
+- **main.c** - The entrypoint to the system, a slightly modified version of the original factory demo main.c.
+- **/external_components** - Components from the factory demo including *bsp_board*, all necessary for the operation of the project.
+- **lv_conf.h** - Configuration file for LVGL module which handles the UI display.
+- **idf_component.yml** - List of component dependencies needed for system operation.
+- **CMakeLists.txt** - An ESP-IDF needed component which provides link information, compiling options and file locations for system mapping during build.
+
+<!-- ## System Overview
+
+> ROHITS DIAGRAM -->
+
+## Development
+Development initially began by analysing the factory demo and other available options from Espressif for the ESP-Box. Although we had our end goal to develop a responsive system, we were unsure as to how much of the existing system we should use. We decided to test ourselves and re-develop key components such as UI, audio handling, networking and API as we believed that developing these systems from scratch would improve our understanding and enable us to provide a more tailored system. After we had selected the factory demo framework, we did our best to reverse-engineer components that were necessary for our system, to identify ways we could produce our own better-tailored functions.
+
+We considered options such as Willow, which in hindsight may have been a better option, however we struggled to set up Willow and chose an alternative that would provide more of a challenge for us. We would've preferred to use Arduino, however when Arduino was first attempted before using the factory demo framework, unfortunately several errors were occurring due to the application of *LVGL* and *TFT* for UI. We could not solve these issues, even when using the factory demo configurations for each dependency.
+
+### Rapid Prototyping and Iterative Development
+We adopted an iterative development approach that we would then use for rapid prototyping. Through iterative development, we implemented small components that we would prototype and build upon after testing rigorously and meticulously. Initially we started with developing the main splash page UI after developing wireframe designs that came about from our discussions and planning. Once we had developed the main page, we then began developing the other individual pages one by one, building up their appearance and connections as we progressed.
+
+As speech recognition and audio were our most important features, they became the first non-UI components to be developed and built up. They were also where the majority of time was spent, as audio handling as well as wakeword and speech detection were the most important criteria for our system to be able to at least detect user voice commands.
+
+### Feedback
+During the development of the system, logging became an absolute necessity, especially as, when issues arose, it would at least help identify the cause. As connections between pages and services increased, it became more obvious about the need to understand the specific processes being performed for every new task to understand where issues were being created. Detailed feedback helped us identify issues, leading to several refinements and fixes. Feedback was most necessary for handling data buffers as crashing caused by memory overflowing would be identifiable by the last thread or task called. 
+
+### Challenges, Limitations and Mitigation Strategies
+Throughout the project, several problems occurred which had a significant impact on the development strategy and our final product. Memory was one of the largest problems throughout the project with memory buffer allocations often causing overloads when under-allocated. A large portion of development time was spent identifying and resolving memory issues. Due to memory limitations, we had to scrap our Wi-Fi scanning system we used in LA1 for showing all available SSIDs and instead had to opt for a more static page purely because the memory buffer allocated kept overflowing. Another problem was that as HTTP requests sizes varied, it was hard to set a maximum, as when that maximum was met, memory which would be the result was lost. For the majority of memory limitations, we added in hard caps and have made sure to free up space wherever possible and ensure that variables which are no longer in use are freed from memory. For HTTP API requests we increased the max buffer size to compensate for very large responses. We also utilised heap memory allocation and threaded task buffers for efficient memory allocation as part of our mitigation strategy. Audio file recording buffers are also allowed to use the ESP-Box's PSRAM if necessary.
+
+LVGL in itself is another problem we came across; specifically at the start, pages could sometimes crash depending on how they were set out. Documentation suggests deleting screen objects to save memory; however doing so led to null pointers which caused more crashing. We adopted a system where pages are initialised once and are just loaded, rather than attempting to save storage. 
+
+A major problem that does not seem fixable currently is that sometimes Wit.ai rejects the WAVE file we supply. We have cross-checked the format and have exported it to our devices to check that the audio file is not corrupted in any way, and it is not. However, Wit.ai sometimes does not accept the file, even in raw format, which has led to a robustness issue where the recognition may not work. We have left raw audio as a format in case this issue arises as a fallback option, as it does work on average better than WAVE audio files for Wit.ai. A proposed mitigation would be to completely remove Wit.ai in favour of OpenAI Whisper only, however, due to time constraints it was not feasible to test in our project. This mitigation strategy would also likely combat the amount of time taken for a query to be fully processed by the APIs as OpenAI offers speech-to-speech prompts.
+
+Again due to time constraints as well as feasibility, OTA could not be added. When attempts were made, the system kept crashing and errors kept appearing no matter what method we took to resolve them. We have kept in the partitioning system used by the factory demo; however we have left OTA as a future work consideration for now.
+
+### Testing and Results
+As was the case in LA1, we identified and considered possible use cases to ensure testing considered all realistic scenarios that may occur. Both stress and logic testing were conducted on both individual components and the entire system flow paths with expected and actual outcomes listed. Logging was set up and used to gain insight on the flow between processes to identify any potential problems. We have left our logging in the code so that future developers or testers can also identify any potential errors they face as soon as possible.
+
+> *Note: Videos of the testing have been added to the [media](./media) folder. You can find our demo video at the very bottom of this README*
+
+#### Speech Recognition
+| Test Case | Expected Outcome | Actual Outcome | Success |
+| :------ |  :------ | :------- | ------: |
+| Wi-Fi not connected | ```Hi ESP``` detected but recording should not be activated | ```Hi ESP``` detected but recording and UI page change not activated | ✅ |
+| Wi-Fi connected | ```HI ESP``` detected and recording is activated | ```Hi ESP``` was detected and recording activated | ✅ |
+| Wakeword already detected, wakeword said again whilst ESP is recording | ESP should ignore the wakeword detection and continue recording until stopped | Wakeword re-detection was ignored and recording continued | ✅ |
+| Recording has ended, wakeword was spoken | Wakeword should be detected and recording should begin again | Wakeword was detected and recording began once again | ✅ |
+
+#### Audio
+For audio testing, it was mainly testing the quality of saving the audio and playing back speech recorded audio to ensure it sounds correct. All the audio recorded was able to be played back from WAVE audio file format. However, the microphone on the ESP is either not that great or the positioning of it makes the sound a little muffled. Thankfully, it didn't seem to interfere greatly with our speech processing, a couple of words did appear misinterpreted but that could also be due to the interpretation by Wit.ai's LLM. The audio mute toggling worked under stress testing where it was pressed fast several times over to try and confuse the boolean logic. Overall audio can be concluded as passing.
+
+#### API
+| Test Case | Expected Outcome | Actual Outcome | Success |
+| :------ |  :------ | :------- | ------: |
+| Wi-FI connected, weather API called | Weather API HTTP request should send and the result returned | Request sent and result was returned | ✅ |
+| Wi-Fi not connected, function to send data to Wit.Ai called | Function should not run as Wi-Fi isn't connected | Function didn't run POST request | ✅ |
+| Blank audio file | Wit.ai should return blank data, not no data | Wit.ai returned blank data (empty but not null) | ✅ |
+| Wi-Fi connected | SNTP should be called and local time should be collected | SNTP was called and local time was produced | ✅ |
+| Blank text prompt | GPT should return nothing | GPT returned ```It looks like you've entered a single quote ('). Could you please clarify what you want assistance with?``` | ❌ |
+| Two API calls at the same time | Resource error, should error both API calls out but not stop the full code | Both API calls failed but did not error out the code | ✅ |
+
+Unsure how the single quote mark was identified, although the test failed, it's an acceptable fail as it doesn't impact the robustness of the code logic.
+
+#### Wi-Fi
+| Test Case | Expected Outcome | Actual Outcome | Success |
+| :------ |  :------ | :------- | ------: |
+| User scans the first QR Code on the UI Wi-Fi page | User should be prompted to join a network if using mobile devices | User was prompted to join a network on both iPhone and Android | ✅ |
+| Scanning the second QR Code should take the user to ```192.168.4.1``` | If the user is connected to ESP AP, Form should appear | Form appeared | ✅ |
+| Wi-Fi disconnect as existing connected network no longer available | ESP AP should re-appear so that user may connect the ESP to another network | ESP AP re-appeared | ✅ |
+| User scans Wi-Fi QR Code with Captive Portal Enabled | User should be automatically redirected to ```192.168.4.1``` upon joining the Wi-Fi | ESP Logged Error, captive portal did not appear | ❌ |
+
+DNS captive portalling kept causing errors and was omitted from the project, however the code remains commented in the repository for future development.
+
+#### UI
+| Test Case | Expected Outcome | Actual Outcome | Success |
+| :------ |  :------ | :------- | ------: |
+| App started | UI Main Should load | UI Main loaded no issues | ✅ |
+| Info Icon selected | About us should appear | Loaded with no issues | ✅ |
+| SR_Main detects Wakeword | Assistant Page should load | Assistant page loaded | ✅ |
+| Back button and page buttons tapped excessively and fast | When called pages should appear and when back button, should return to main UI page without any issues | No memory issues and correct end UI page | ✅ |
+| Wi-Fi connected | Wi-Fi icon should change from no Wi-Fi to Wi-Fi | Icon changed correctly | ✅ |
+| Wi-Fi connected | About us Wi-Fi status should change from False to True | Status changed correctly | ✅ |
+| Wi-Fi disconnected but was previously connected | Wi-Fi icon should change to no Wi-Fi | Icon changed correctly | ✅ |
+| Wi-Fi disconnected but was previously connected | About us Wi-Fi status should change to False | Changed to False | ✅ |
+| Wi-Fi connected and API successful | Weather, date and time information should update | Labels changed and showed the API results | ✅ |
+| Wi-Fi disconnected | Weather, date and time should not change or be lost | Labels did not change | ✅ |
+
+## Self Assessment
+It is safe to say that whilst this was a project that often left us wanting to understand how a little machine can provide so much annoyance, it also provided some of the best satisfaction when parts worked. At university, we have had limited hands-on experience with actual hardware. This project was our first major hardware-focused task, and we enjoyed the challenge.
+
+In terms of critically assessing the device, the scope was way too large and unrefined. In fact it was initially even larger, however we just simply did not have the time to test external components. Because we decided to do many functions from scratch, time was lost trying to re-invent the wheel so to speak, which is not ideal. In hindsight, Willow with its speech to text feature, would have been a better framework choice if applied. The time taken for speech prompts to return audio, far exceeds 45 seconds which is not great for an Alexa replacement. Although it would make a great ornament that can provide the time and weather, more work is needed for it to be on par with existing devices. In future development, work would be undertaken to replace the current API used in speech handling for faster alternatives, or begin the process of re-applying this project to Willow framework instead. Secondly, work would be undertaken to take advantage of the IR and Radar sensors that exist within the ESP as well as external hardware to better apply the project for smart home development. Currently it exceeds being an intelligent device, however it lacks the supportive native that a 'DIY Alexa' can bring in terms of a smart home and assistance device. In terms of hardware replacement, an external microphone and speaker would be beneficial. Although both internal versions of the components operate, the microphone's audio capturing quality is often poor and needs to be replaced whilst the speaker doesn't output too great of an audio quality either.
+
+In terms of critically assessing ourselves, our pacing was rather rushed and a lot of effort was put only in at a condensed time. Because of this pacing, faster but less reliable methods were definitely implemented into our system. The pressure from other modules including dissertation and other coursework really caused a strain on time available. However, our teamwork and ability to work for long periods in-person meant that we were able to recoup a lot of the lost time and were able to assist eachother throughout the project. Steps definitely could've been taken to better handle the workload as with one device it was difficult for both of us to do coding when remote. However, we made do with our situation and still ended up producing a valuable result.
+
+This project is not regrettable in any shape or form. This product was developed on a language that neither of us working on the system were familiar with at all. Alongside the skill of learning a new language, we also learned how to utilise different hardware components of a device with a very aesthetically pleasing and user-centred design that is very easy to use.
+
+## Conclusion
+To conclude, we managed to develop a speech query smart ESP that is capable of understanding speech through an LLM and providing a response using OpenAI and Wit.ai's LLM. There are definitive caveats to our solution such as the waiting time for a response back, the limitations of the device's memory as well as the limitations for its use as a household 'DIY Alexa'. However, with these limitations in mind, the project still managed to produce a feasible result that we are proud to deliver and provide.
+
+## How to Use
+
+Firstly, please ensure you have [ESP-IDF installed](https://dl.espressif.com/dl/esp-idf/?idf=4.4), this is a minimum requirement to ensure the project can compile. In our development we used version ```v1.0.3```. If using VSCode, it is recommended to use extension version ```v5.4.1```.
+
+You can identify your ESP-IDF version by running the following in terminal:
+```
+idf.py --version
+```
+Clone the repository and enter */ProjectThing*:
+```git
+git clone https://gitlab.com/kjoshi3/com3505-student-2025.git && cd com3505-student-2025/LA2/ProjectThing
+```
+
+* If the Espressif Device Target doesn't automatically register, retry. If the problem persists, set flash target to ```esp32s3```. Note this will clear *sdkconfig* for which you will need to re-enable options such as DHCP to prevent issues.
+* Set ```Flash Method``` to ```UART```.
+* Set your Port to whichever the device is connected to, i.e. ```COM3```.
+
+Run ```fullclean``` and ```build```
+```
+idf.py fullclean
+idf.py build
+```
+
+Once it has built, run ```flash```:
+
+
+```
+idf.py flash
+```
+
+## Video
+
+Below is our video demo, please note that the Query to Response time was cut short (By 37 seconds) because it would not have fit within the 1 minute allotted demo video time:
+<video width="500" height="500" controls>
+ <source src="./media/demo.mp4" type="video/mp4">
+ <source src="./media/demo.mov" type="video/mov">
+</video>
+![](./media/demo.mov)
+
+### Dependencies
+See [idf_component.yml](./ProjectThing/main/idf_component.yml) for a list of component dependencies.
+
+## References
+Certain resources used within this project were not developed by ourselves but are available under licensing subject to conditions such as attributing the authors and creators. Below is a list of external resources used:
+- [Wifi icon](./ProjectThing/main/gui/image/wifi_icon.c) is a C file version of a png by Google from [Flaticon](https://www.flaticon.com/free-icons/wifi).
+- [No Wifi Icon](./ProjectThing/main/gui/image/no_wifi_icon.c) is a C file version of a png by Cap Cool from [Flaticon](https://www.flaticon.com/free-icons/no-internet).
+- [Cloud Icon](./ProjectThing/main/gui/image/cloud_connected.c) is a C file version of a png by meaicon from [Flaticon](https://www.flaticon.com/free-icons/computing).
+- [Cloud Disconnected Icon](./ProjectThing/main/gui/image/cloud_not_connected.c) is a C file version of a png by zero_wing from [Flaticon](https://www.flaticon.com/free-icons/error).
+- [Sound on Icon](./ProjectThing/main/gui/image/volume_on.c) is a C file version of a png by Ferdinand from [Flaticon](https://www.flaticon.com/free-icons/windows-media-audio)
+- [Sound off Icon](./ProjectThing/main/gui/image/volume_off.c) is a C file version of a png by Google from [Flaticon](https://www.flaticon.com/free-icons/mute).
+- [Info Icon](./ProjectThing/main/gui/image/info.c) is a C file version of a png by Freepik from [Flaticon](https://www.flaticon.com/free-icons/info).
+- [Mic Logo](./ProjectThing/main/gui/image/mic_logo.c), [ESP Logo](./ProjectThing/main/gui/image/esp_logo.c), [echo_en_end.wav](./ProjectThing/spiffs/echo_en_end.wav), [echo_en_ok.wav](./ProjectThing/spiffs/echo_en_ok.wav), [echo_en_wake.wav](./ProjectThing/spiffs/echo_en_wake.wav), [Canon.mp3](./ProjectThing/spiffs/mp3/Canon.mp3), [Dance with Me.mp3](./ProjectThing/spiffs/mp3/Dance%20with%20Me.mp3) as well as all the [fonts](./ProjectThing/main/gui/font/) are all from the [Espressif ESP-Box Factory Demo](https://github.com/espressif/esp-box/tree/master/examples/factory_demo).
