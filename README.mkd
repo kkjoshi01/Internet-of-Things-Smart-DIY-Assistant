@@ -1,4 +1,4 @@
-# COM3505 Lab Assessment 2
+# SmartESP
 *By Keshav Joshi and Rohit Menon*
 
 <figure>
@@ -243,7 +243,7 @@ idf.py --version
 ```
 Clone the repository and enter */ProjectThing*:
 ```git
-git clone https://gitlab.com/kjoshi3/com3505-student-2025.git && cd com3505-student-2025/LA2/ProjectThing
+git clone https://github.com/kkjoshi01/Internet-of-Things-Smart-DIY-Assistant.git && cd ProjectThing
 ```
 
 * If the Espressif Device Target doesn't automatically register, retry. If the problem persists, set flash target to ```esp32s3```. Note this will clear *sdkconfig* for which you will need to re-enable options such as DHCP to prevent issues.
